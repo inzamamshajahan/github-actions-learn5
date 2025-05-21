@@ -1,0 +1,4 @@
+# requirements.txt
+# Runtime dependencies for the main script
+pandas
+numpy
