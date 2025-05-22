@@ -163,6 +163,6 @@ if __name__ == "__main__":  # pragma: no cover
     except Exception as e:
         logger.critical(f"An unhandled error occurred during script execution: {e}", exc_info=True)
         # import sys
-        # sys.exit(1) # Consider exiting with an error code for critical failures
+        # sys.exit(1) # Consider exiting with an error code for critical failures.
 
     logger.info("Script execution finished.")

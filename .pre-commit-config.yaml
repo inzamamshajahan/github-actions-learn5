@@ -8,8 +8,7 @@ repos:
     -   id: check-yaml
     -   id: check-added-large-files
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.11.10' # Or your desired ruff version, current is higher. Your provided log shows v0.11.10, so use that or newer. Let's use a recent one for the example.
-    # rev: 'v0.4.4' # Example of a more recent version
+    rev: 'v0.11.10'
     hooks:
     -   id: ruff
         args: [--fix, --exit-non-zero-on-fix]
