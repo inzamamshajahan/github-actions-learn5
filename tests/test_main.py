@@ -1,76 +1,91 @@
 # tests/test_main.py
-import pytest
-import pandas as pd
 import os
 import tempfile
-from main import process_some_data # Assuming main.py is at the root
-import main as main_module # For logger access if needed for logging tests
 
-# Fixture to create a temporary data directory and a sample input file
-@pytest.fixture
-def temp_csv_input():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        data_subdir = os.path.join(tmpdir, "data")
-        os.makedirs(data_subdir)
-        sample_file_path = os.path.join(data_subdir, "sample_input.csv")
-        pd.DataFrame({'col1': [10, 20], 'col2': [30, 40]}).to_csv(sample_file_path, index=False)
-        
-        # Also make sure main_module.setup_logging() can write its log if it's path-dependent
-        # For simplicity, we assume console logging in tests, or you'd mock file logging.
-        # If main.py writes logs to a path relative to its execution, that might still work.
-        # If it used a PROJECT_ROOT-derived path, you'd need a different strategy or mock.
-        
-        yield sample_file_path # Provide the path to the test function
+import pandas as pd
+import pytest
 
-def test_process_some_data(temp_csv_input, caplog): # caplog is a pytest fixture for capturing logs
-    # Setup logging for the test context if not already configured by main execution
-    # This is still useful if your function itself configures logging or if you want to capture its logs
+# pandas.testing is not used in your provided test file, but good to keep if you plan to use assert_frame_equal
+# from pandas.testing import assert_frame_equal
+# MODIFIED IMPORTS:
+from src import main as main_module  # Import the main module from src
+from src.main import (
+    create_sample_dataframe,
+    process_data,
+)
+
+
+@pytest.fixture()
+def sample_df_for_test() -> pd.DataFrame:
+    data = {
+        "id": [1, 2, 3, 4, 5],
+        "category": ["X", "Y", "X", "Z", "Y"],
+        "value1": [15, 25, 35, 45, 10],
+        "value2": [10.0, 20.0, 30.0, 40.0, 50.0],
+    }
+    return pd.DataFrame(data)
+
+@pytest.fixture()
+def temp_data_dir(monkeypatch):
+    """Creates a temporary directory for data files during tests and cleans up."""
+    with tempfile.TemporaryDirectory() as tmpdir_path:
+        # This will correctly patch PROJECT_ROOT within the src.main module
+        monkeypatch.setattr(main_module, "PROJECT_ROOT", tmpdir_path)
+        yield tmpdir_path
+
+def test_create_sample_dataframe():
+    # Ensure logging is set up if main_module's logger is used by create_sample_dataframe
+    # and it's not set up by just importing.
+    # The setup_logging call in main_module happens if __name__ == "__main__"
+    # or if explicitly called by tests.
     if not main_module.logger.hasHandlers():
-         main_module.setup_logging() # This will try to create data/data_processing.log
+        main_module.setup_logging() # Ensure logger is configured
 
-    result_df = process_some_data(input_file=temp_csv_input)
-    assert not result_df.empty
-    assert "processed_value" in result_df.columns
-    pd.testing.assert_series_equal(result_df["processed_value"], pd.Series([1000, 2000], name="processed_value"), check_dtype=False)
-    
-    # Check if the output file was created in the temp directory's data subfolder
-    expected_output_path = os.path.join(os.path.dirname(os.path.dirname(temp_csv_input)), "data", "processed_output.csv")
-    assert os.path.exists(expected_output_path)
-    
-    # Check log messages (example)
-    assert "Data read successfully." in caplog.text
-```**Key changes in tests:**
-*   The `temp_data_dir` fixture is simplified to `temp_csv_input` which just creates the necessary input file in a temporary structure.
-*   Monkeypatching `PROJECT_ROOT` is removed as `main.py` is no longer structured around it in this "pure config" model.
-*   The test now directly passes the path of the temporary input CSV to `process_some_data`.
-*   The output file path is also checked relative to the temporary structure.
+    df = create_sample_dataframe()
+    assert isinstance(df, pd.DataFrame)
+    assert not df.empty
+    assert list(df.columns) == ["id", "category", "value1", "value2"]
+    assert len(df) == 5
 
-**Step 7: Create `.gitignore`**
-(Same as the previous step 7 – ensure `venv/`, `__pycache__/`, `data/processed_output.csv`, `data/data_processing.log`, etc., are ignored).
+def test_process_data_with_input_file(sample_df_for_test: pd.DataFrame, temp_data_dir: str):
+    if not main_module.logger.hasHandlers():
+         main_module.setup_logging()
 
-**Step 8: Create `.pre-commit-config.yaml`**
-(Same as the previous step 8 – tool configurations in `pyproject.toml` will be picked up). Remember that `additional_dependencies` for `mypy` hook are still crucial.
+    test_input_csv_path = os.path.join(temp_data_dir, "data", "test_input.csv")
+    os.makedirs(os.path.dirname(test_input_csv_path), exist_ok=True)
+    sample_df_for_test.to_csv(test_input_csv_path, index=False)
 
-```yaml
-# .pre-commit-config.yaml
-repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0 # Or latest
-    hooks:
-    -   id: trailing-whitespace
-    -   id: end-of-file-fixer
-    -   id: check-yaml
-    -   id: check-added-large-files
--   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.4 # Use a recent rev for ruff
-    hooks:
-    -   id: ruff
-        args: [--fix, --exit-non-zero-on-fix, --show-fixes]
-    -   id: ruff-format
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.0 # Use a recent rev for mypy
-    hooks:
-    -   id: mypy
-        args: [--config-file=pyproject.toml]
-        # These are still needed for the hook's isolated environment
-        additional_dependencies: ['pandas-stubs', 'numpy-stubs', 'types-PyYAML']
+    # process_data will use the monkeypatched PROJECT_ROOT via get_default_input_path etc.
+    processed_df = process_data(test_input_csv_path)
+
+    assert not processed_df.empty
+    assert "value1_plus_10" in processed_df.columns
+    expected_ids_after_filter = [2, 3, 4] # Based on value1 > 20 filter
+    assert processed_df["id"].tolist() == expected_ids_after_filter
+    expected_types = ["Medium", "Medium", "High"] # Based on value1: 25, 35, 45
+    assert processed_df["value1_type"].tolist() == expected_types
+
+def test_process_data_generates_sample_if_no_input(temp_data_dir: str):
+    if not main_module.logger.hasHandlers():
+         main_module.setup_logging()
+
+    # process_data will use the monkeypatched PROJECT_ROOT
+    processed_df = process_data("non_existent_file.csv") # Pass a non-existent path
+    assert not processed_df.empty
+    assert "value1_plus_10" in processed_df.columns
+
+    # Check that sample_input.csv was created in the temp_data_dir
+    generated_input_path = os.path.join(temp_data_dir, "data", "sample_input.csv")
+    assert os.path.exists(generated_input_path)
+
+def test_process_data_handles_empty_input_file(temp_data_dir: str):
+    if not main_module.logger.hasHandlers():
+        main_module.setup_logging()
+
+    empty_csv_path = os.path.join(temp_data_dir, "data", "empty_input.csv")
+    os.makedirs(os.path.dirname(empty_csv_path), exist_ok=True)
+    with open(empty_csv_path, "w") as f:
+        f.write("") # Create an empty file
+
+    processed_df = process_data(empty_csv_path)
+    assert processed_df.empty

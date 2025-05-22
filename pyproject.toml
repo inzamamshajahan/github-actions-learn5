@@ -3,34 +3,32 @@
 # Dependencies are managed via requirements.txt and requirements-dev.txt.
 
 [tool.ruff]
-line-length = 200 # Or your preferred line length
+line-length = 200 # As in your example, adjust if needed
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "C", "B", "UP", "PT", "SIM"]
 ignore = []
-# fixable = ["ALL"] # Optional: if you want ruff pre-commit hook to fix everything it can
+# fixable = ["ALL"] # Optional
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 
 [tool.mypy]
-python_version = "3.8" # Or your target Python version
+python_version = "3.8"
 warn_return_any = true
 warn_unused_configs = true
-plugins = ["numpy.typing.mypy_plugin"] # If using numpy
-# If your code is in src/: mypy_path = "src"
-# If your code is at the root: mypy_path = "." (or omit if Mypy finds it)
+plugins = ["numpy.typing.mypy_plugin"]
+mypy_path = "src" # Correct, as your code is in src/
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-# addopts can be used for default options if you run pytest manually
-# e.g., addopts = "-ra -q"
-# Coverage will be typically driven by the CI script or Makefile
-testpaths = ["tests"] # If you have a tests directory
+addopts = "-ra -q --cov=src.main --cov-report=term-missing --cov-fail-under=60" # Updated --cov target to src.main
+testpaths = ["tests"]
+# log_cli = true # Optional pytest log config
+# log_cli_level = "INFO"
 
 [tool.bandit]
-# Bandit specific configurations (e.g., skips, severity levels) can go here.
-# Example:
-# skips = ["B101"] # Skip the assert_used check
-# severity_medium_score = 2.0
+# skips = ["B101"] # Example: Skip the assert_used check if needed
+# severity_medium_score = 2.0 # Example
+# Your existing [tool.bandit] was empty, which is fine. Add specifics if necessary.

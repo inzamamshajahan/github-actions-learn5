@@ -8,14 +8,16 @@ repos:
     -   id: check-yaml
     -   id: check-added-large-files
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.11.10'
+    rev: 'v0.1.15' # Or your desired ruff version, current is higher. Your provided log shows v0.11.10, so use that or newer. Let's use a recent one for the example.
+    # rev: 'v0.4.4' # Example of a more recent version
     hooks:
     -   id: ruff
         args: [--fix, --exit-non-zero-on-fix]
     -   id: ruff-format
 -   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: 'v1.7.1'
+    rev: 'v1.7.1' # Or your desired mypy version. Your log shows mypy 1.15.0 was installed.
+    # rev: 'v1.10.0' # Example of a more recent version
     hooks:
     -   id: mypy
         args: [--config-file=pyproject.toml]
-        additional_dependencies: ['pandas-stubs', 'types-PyYAML', 'pytest']
+        additional_dependencies: ['pandas-stubs', 'types-PyYAML', 'pytest', 'numpy'] # Added numpy as per mypy plugin
