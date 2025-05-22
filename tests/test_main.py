@@ -15,7 +15,7 @@ from src.main import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_df_for_test() -> pd.DataFrame:
     data = {
         "id": [1, 2, 3, 4, 5],
@@ -25,7 +25,7 @@ def sample_df_for_test() -> pd.DataFrame:
     }
     return pd.DataFrame(data)
 
-@pytest.fixture()
+@pytest.fixture
 def temp_data_dir(monkeypatch):
     """Creates a temporary directory for data files during tests and cleans up."""
     with tempfile.TemporaryDirectory() as tmpdir_path:
